@@ -1,0 +1,128 @@
+#define DEBUG
+
+#ifdef DEBUG
+#define MULTI_SAMPLE  (10)
+#elif
+#define MULTI_SAMPLE  (60*10)
+#endif
+
+volatile uint8_t chrbuf[4];
+volatile uint8_t idx;
+volatile uint16_t readcount = 0;
+volatile uint16_t readings[MULTI_SAMPLE];
+long last_sampled = 0;
+double avg;
+
+int led1 = D7;
+
+void sensor_on() {
+  digitalWrite(D1,HIGH);
+}
+
+void sensor_off() {
+  digitalWrite(D1,LOW);
+}
+
+double mean(volatile uint16_t* samples,const uint16_t length) {
+	double sum = 0;
+	for (uint16_t i = 0; i < length; i++) {
+		sum += samples[i];
+	}
+	return sum/length;
+}
+
+void setup() {
+  pinMode(led1,OUTPUT);
+  pinMode(D1,OUTPUT);
+  sensor_off();
+
+  Serial.begin();
+  Serial1.begin(9600,SERIAL_8N1);
+
+  //Cellular.off();
+  //RGB.control(true);
+  //RGB.color(0,0,0);
+  //RGB.brightness(0);
+}
+
+int fsm(uint8_t c) {
+	if ('R' == c) {
+		idx = 0;
+	} else if ('\r' == c) {
+		if (readcount < MULTI_SAMPLE) {
+			uint16_t tmp = (chrbuf[0] - '0')*1000 + (chrbuf[1] - '0')*100 + (chrbuf[2] - '0')*10 + (chrbuf[3] - '0');
+			readings[readcount++] = tmp;
+		}
+		chrbuf[0] = 0;
+		chrbuf[1] = 0;
+		chrbuf[2] = 0;
+		chrbuf[3] = 0;
+	} else {
+		if (idx < sizeof(chrbuf)) {
+			if ((c >= '0') && (c <= '9')) {
+				chrbuf[idx++] = c;
+			} else {
+				idx = 0;	// invalid character
+			}
+		} else {
+			idx = 0;
+		}
+	}
+}
+
+void serialEvent1() {
+  fsm(Serial1.read());
+}
+
+void loop() {
+  if (!Serial1.available()) {
+    Particle.process();
+  }
+
+  if (Time.now() - last_sampled >= 1) {
+    sensor_on();
+    delay(1);   // ms
+    sensor_off();
+    last_sampled = Time.now();
+  }
+
+  if (readcount >= MULTI_SAMPLE) {
+    digitalWrite(led1,HIGH);
+    avg = mean(readings,MULTI_SAMPLE);
+    Serial.println(avg);
+    #ifndef DEBUG
+    Particle.publish("d",String(avg));
+    #endif
+    readcount = 0;
+    digitalWrite(led1,LOW);
+  }
+}
+
+/*void loop() {
+  if (Serial.available()) {
+    digitalWrite(led1,HIGH);
+    int inByte = Serial.read();
+    Serial1.write(inByte);
+    digitalWrite(led1,LOW);
+  }
+  if (Serial1.available()) {
+    digitalWrite(led2,HIGH);
+    int inByte = Serial1.read();
+    Serial.write(inByte);
+    digitalWrite(led2,LOW);
+  }
+}*/
+
+/*void loop() {
+  Particle.process();
+
+  Serial.println("test");
+  digitalWrite(led1, HIGH);
+  digitalWrite(led2, HIGH);
+  delay(100);
+
+  Serial.println("test");
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, LOW);
+  delay(100);
+}*/
