@@ -1,27 +1,32 @@
 /*
-Message format changed to include sample time.
-Power report via FuelGauge (todo)
-RTC is sycned once a day.
+Message format changed to include sample time (event name = d2w). Example:
+  [[1497818212,1333.8],[1497818272,1333.8],[1497818332,1333.7],[1497818392,1333.5],[1497818452,1333.7],[1497818512,1334.2],[1497818572,1378.3],[1497818632,1334.3],[1497818692,1334.4],[1497818752,1334.5]]
+
+Power report via FuelGauge (event name = debug):
+  {"VbattV":4.066250}
+
+RTC is sycned every 24hr.
 
 particle compile electron . --saveTo e && particle flash --serial e
 
 https://community.particle.io/t/electron-sleep-mode-deep-tips-and-examples/27823
 
-So there are
-  measure interval
-  average interval
-  transmit interval
+Sensor is polled every second. A sample is calculated and stored from the sample
+mean of N_AVG measurements.
+Samples are transmitted in one batch When N_GROUP samples are collected.
 
-Send when 10-minute worth of samples are collected vs. send at 0, 15, 30, 45 of the hours:
-the latter is easier to code, but bad for the server when all sensors try to send at the same time
+- - -
+Design decision:
 
-"Readings" vs. "Samples":
-  one ultrasonic reading per second;
-  save one sample every N_AVG readings (the average of the N_AVG readings);
-  send after N_GROUP samples are collected.
+Send when 15-minute worth of samples are collected vs. send at 0, 15, 30, 45 of the hours:
+The latter is easier to code, but bad for the server when all sensors try to send at the same time.
 
-  Note: When debugging using a serial monitor, hit RETURN to start receiving
-  messages from the Particle Electron. Some "Arduino legacy".
+Note: When debugging using a serial monitor, hit RETURN to start receiving
+messages from the Particle Electron. Some "Arduino legacy".
+
+Stanley H.I. Lio
+hlio@hawaii.edu
+University of Hawaii, 2017
 */
 
 #define PUBLISH_ENABLED 1
@@ -45,9 +50,10 @@ int usen = D1;  // EN pin of ultrasonic sensor
 
 void led_on() {  digitalWrite(led1,HIGH);}
 void led_off() {  digitalWrite(led1,LOW);}
-void sensor_on() {  digitalWrite(D1,HIGH);}
-void sensor_off() {  digitalWrite(D1,LOW);}
+void sensor_on() {  digitalWrite(usen,HIGH);}
+void sensor_off() {  digitalWrite(usen,LOW);}
 
+//https://docs.particle.io/support/troubleshooting/mode-switching/electron/
 SYSTEM_MODE(SEMI_AUTOMATIC);  // !!
 
 void ustrigger() {
