@@ -75,7 +75,6 @@ void clocksync() {
 }
 
 Timer timer1(1000,ustrigger);
-Timer timer2(24*60*60*1000,clocksync);
 
 bool fsm(uint8_t c, uint16_t * r) {
   static uint8_t chrbuf_i;
@@ -140,11 +139,11 @@ void setup() {
   RGB.brightness(0);
 
   timer1.start();
-  timer2.start();
 }
 
 void loop() {
-  if (readings_i >= N_AVG) {
+  // calculate mean and store as one sample
+  if ((readings_i >= N_AVG) && (samples_i < N_GROUP)) {
     samples[samples_i].ts = Time.now();
     samples[samples_i].d2w = mean(readings,N_AVG);
     samples_i++;
@@ -154,11 +153,11 @@ void loop() {
     }
   }
 
-// [[t1,d1],[t2,d2]]
+  // format the list of samples into a string of the form
+  //  [[t1,d1],[t2,d2]...]
   if (samples_i >= N_GROUP) {
     String msg = "[";
     for (int i = 0; i < samples_i; i++) {
-
       String tmp = "[";
       tmp += String(samples[i].ts);
       tmp += ",";
@@ -166,12 +165,14 @@ void loop() {
       tmp += "]";
 
       msg += tmp;
+
       if (i < samples_i - 1) {
         msg += ",";
       }
     }
     msg += "]";
 
+    // print/publish
     Serial.println(msg);
 
     #if PUBLISH_ENABLED
@@ -189,6 +190,7 @@ void loop() {
     samples_i = 0;
   }
 
+  // sync the internal real-time clock
   if (millis() - Particle.timeSyncedLast() > 24*60*60*1000) {
     clocksync();
   }
