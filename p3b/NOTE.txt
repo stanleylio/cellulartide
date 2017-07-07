@@ -1,1 +1,3 @@
-alt sleep, from p3
+testing alt sleep mode, idle 26mA @ 5V instead of 60mA, but serial interrupt no longer works so sampling interval is not precise. do not use.
+
+from p3

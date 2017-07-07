@@ -1,6 +1,6 @@
 /*
 "Project Insomnia"
-Cellular radio is always on.
+Cellular radio is always on so OTA update is possible.
 
 Message format changed to include sample time (event name = d2w). Example:
   [[1497818212,1333.8],[1497818272,1333.8],[1497818332,1333.7],[1497818392,1333.5],[1497818452,1333.7],[1497818512,1334.2],[1497818572,1378.3],[1497818632,1334.3],[1497818692,1334.4],[1497818752,1334.5]]
@@ -21,11 +21,13 @@ Samples are transmitted in one batch When N_GROUP samples are collected.
 - - -
 Design decision:
 
-Send when 15-minute worth of samples are collected vs. send at 0, 15, 30, 45 of the hours:
+"Send when N-minute worth of samples are collected" vs. "send at 0, 15, 30, 45 of the hours":
 The latter is easier to code, but bad for the server when all sensors try to send at the same time.
 
 Note: When debugging using a serial monitor, hit RETURN to start receiving
 messages from the Particle Electron. Some "Arduino legacy".
+
+TODO: watchdog; I2C
 
 Stanley H.I. Lio
 hlio@hawaii.edu

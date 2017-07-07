@@ -1,1 +1,3 @@
-no sleep, full auto, from p3
+no sleep -> OTA update possible.
+
+from p3
