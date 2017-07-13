@@ -34,14 +34,15 @@ hlio@hawaii.edu
 University of Hawaii, 2017
 */
 
+#include "Adafruit_BME280.h"
+
 #define PUBLISH_ENABLED 1
-#define N_AVG   (60)  // server no longer makes assumption about this
-#define N_GROUP (10)  // make sure the total message length stay under 255 chars!
+#define N_AVG           (60)  // server no longer makes assumption about this
+#define N_GROUP         (10)  // make sure the total message length stays under 255 chars!
+#define HAS_BME280      1
 
 volatile uint16_t readings[N_AVG];  // a list of sensor readings
 volatile uint16_t readings_i = 0;
-
-//volatile double samples[N_GROUP];   // a list of averages
 typedef struct sample_t {
    uint32_t ts;
    double d2w;
@@ -50,19 +51,16 @@ volatile sample_t samples[2*N_GROUP];
 volatile uint16_t samples_i = 0;
 FuelGauge fuel;
 
+
 int led1 = D7;
-//int usen = D1;  // EN pin of ultrasonic sensor
+//int usen = D1;  // EN pin of ultrasonic sensor; v0.1 and prior (conflict with I2C)
+int usen = D2;  // EN pin of ultrasonic sensor; v0.2 board
+
 
 void led_on() {  digitalWrite(led1,HIGH);}
 void led_off() {  digitalWrite(led1,LOW);}
-void sensor_on() {
-  digitalWrite(D1,HIGH);  // v0.1 and prior (conflict with I2C)
-  digitalWrite(D2,HIGH);  // v0.2 board
-}
-void sensor_off() {
-  digitalWrite(D1,LOW);   // v0.1 and prior (conflict with I2C)
-  digitalWrite(D2,LOW);   // v0.2 board
-}
+void sensor_on() {  digitalWrite(usen,HIGH);}
+void sensor_off() {  digitalWrite(usen,LOW);}
 
 //https://docs.particle.io/support/troubleshooting/mode-switching/electron/
 //SYSTEM_MODE(SEMI_AUTOMATIC);  // !!
@@ -136,8 +134,7 @@ double mean(volatile uint16_t* s,const uint16_t length) {
 
 void setup() {
   pinMode(led1,OUTPUT);
-  pinMode(D1,OUTPUT); // v0.1 and prior
-  pinMode(D2,OUTPUT); // v0.2
+  pinMode(usen,OUTPUT);
   sensor_off();
 
   Serial.begin();
@@ -187,11 +184,23 @@ void loop() {
     // print/publish
     Serial.println(msg);
 
+    String bmemsg = "";
+    #if HAS_BME280
+    Adafruit_BME280 bme;
+    if (bme.begin(0x76)) {
+      bmemsg = ",\"t\":" + String(bme.readTemperature(),2) + ",\"p\":" + String(bme.readPressure()/100.0F,2) + ",\"rh\":" + String(bme.readHumidity(),1);
+    }
+    #endif
+
+    String debugmsg = "{\"VbattV\":" + String(fuel.getVCell()) + bmemsg + "}";
+    Serial.println(debugmsg);
+
     #if PUBLISH_ENABLED
     Particle.publish("d2w",msg);
-    Particle.publish("debug","{\"VbattV\":" + String(fuel.getVCell()) +"}");
+    Particle.publish("debug",debugmsg);
     Serial.println("Sent.");
     #endif
+
     samples_i = 0;
   }
 

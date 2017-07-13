@@ -1,0 +1,2 @@
+From p4 (so no sleep), but with optional BME280.
+Designed for v0.2 board, so ultrasonic control line (US_EN) is on D2, not D1 (one of the I2C lines).
