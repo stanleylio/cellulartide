@@ -37,10 +37,11 @@ University of Hawaii, 2017
 #include "Adafruit_BME280.h"
 
 #define PUBLISH_ENABLED 1
-#define N_AVG           (60)  // server no longer makes assumption about this
-#define N_GROUP         (10)  // make sure the total message length stays under 255 chars!
+#define N_AVG           (60)
+#define N_GROUP         (2)  // make sure the total message length stays under 255 chars!
 #define HAS_BME280      1
 
+volatile uint16_t latest_reading = 0;
 volatile uint16_t readings[N_AVG];  // a list of sensor readings
 volatile uint16_t readings_i = 0;
 typedef struct sample_t {
@@ -50,6 +51,7 @@ typedef struct sample_t {
 volatile sample_t samples[2*N_GROUP];
 volatile uint16_t samples_i = 0;
 FuelGauge fuel;
+volatile int last_sampled = 0;
 
 
 int led1 = D7;
@@ -67,7 +69,7 @@ void sensor_off() {  digitalWrite(usen,LOW);}
 
 void ustrigger() {
   sensor_on();
-  delayMicroseconds(100);
+  delayMicroseconds(500);
   sensor_off();
 }
 
@@ -118,9 +120,7 @@ void serialEvent1() {
   uint16_t r = 0;
   if (fsm(Serial1.read(),&r)) {
 //    Serial.println(r);
-    if ((readings_i < N_AVG) && (r >= 300) && (r <= 5000)) {
-      readings[readings_i++] = r;
-    }
+    latest_reading = r;
   }
 }
 
@@ -151,6 +151,21 @@ void setup() {
 }
 
 void loop() {
+  int ct = Time.now();
+  if (ct - last_sampled >= 1) {
+    //if ((latest_reading >= 300) && (latest_reading <= 5000)) {
+    if ((latest_reading >= 300) && (latest_reading < 5000)) {
+      if (readings_i < N_AVG) {
+        readings[readings_i++] = latest_reading;
+        latest_reading = 0;
+        last_sampled = ct;
+        Serial.println("got");
+      }
+    } else {
+      //Serial.println("nope");
+    }
+  }
+
   // calculate mean and store as one sample
   if ((readings_i >= N_AVG) && (samples_i < N_GROUP)) {
     samples[samples_i].ts = Time.now();
