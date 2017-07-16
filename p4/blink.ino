@@ -120,6 +120,14 @@ void serialEvent1() {
   uint16_t r = 0;
   if (fsm(Serial1.read(),&r)) {
 //    Serial.println(r);
+
+// If readings are inserted into the buffer here, then retry won't happen
+// immediately after a failed read (reading=5000) because the next trigger
+// won't happen until a second later.
+    //if ((readings_i < N_AVG) && (r >= 300) && (r < 5000)) {
+// Also, if US_EN is disonnected / connected to the wrong IO pin, then the
+// readings array would get filled up 6x as fast. An undesiable failure mode.
+
     if ((readings_i < N_AVG) && (r >= 300) && (r <= 5000)) {
       readings[readings_i++] = r;
     }

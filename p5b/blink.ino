@@ -6,7 +6,7 @@ whether the sensor is being switched or not. That means if US_EN is
 disconnected / wired to the wrong pin and sensor is running at 6Hz, measurements
 are still taken at 1Hz.
 
-Readings of 5000 are now rejected and TODO: sensor is immediately triggered again for
+Readings of 5000 are now rejected and sensor is immediately triggered again for
 another measurement.
 
 uC does not sleep. Cellular radio is always on so OTA update is possible.
@@ -50,9 +50,8 @@ University of Hawaii, 2017
 #define PUBLISH_ENABLED 1
 #define N_AVG           (60)
 #define N_GROUP         (10)  // make sure the total message length stays under 255 chars!
-#define HAS_BME280      1
+#define HAS_BME280      0
 
-volatile uint16_t latest_reading = 0;
 volatile uint16_t readings[N_AVG];  // a list of sensor readings
 volatile uint16_t readings_i = 0;
 typedef struct sample_t {
@@ -65,13 +64,8 @@ FuelGauge fuel;
 volatile int last_sampled = 0;
 
 
-int led1 = D7;
-//int usen = D1;  // EN pin of ultrasonic sensor; v0.1 and prior (conflict with I2C)
-int usen = D2;  // EN pin of ultrasonic sensor; v0.2 board
-
-
-void led_on() {  digitalWrite(led1,HIGH);}
-void led_off() {  digitalWrite(led1,LOW);}
+int usen = D1;  // EN pin of ultrasonic sensor; v0.1 and prior (conflict with I2C)
+//int usen = D2;  // EN pin of ultrasonic sensor; v0.2 board
 void sensor_on() {  digitalWrite(usen,HIGH);}
 void sensor_off() {  digitalWrite(usen,LOW);}
 
@@ -95,8 +89,6 @@ void clocksync() {
     Serial.println("clocksync() in progress");
   }
 }
-
-Timer timer1(1000,ustrigger);
 
 bool fsm(uint8_t c, uint16_t * r) {
   static uint8_t chrbuf_i;
@@ -125,7 +117,7 @@ bool fsm(uint8_t c, uint16_t * r) {
   return false;
 }
 
-void serialEvent1() {
+/*void serialEvent1() {
   //char x = Serial1.read();
   //Serial.println(x);
   uint16_t r = 0;
@@ -133,7 +125,7 @@ void serialEvent1() {
 //    Serial.println(r);
     latest_reading = r;
   }
-}
+}*/
 
 double mean(volatile uint16_t* s,const uint16_t length) {
 	double sum = 0;
@@ -144,7 +136,6 @@ double mean(volatile uint16_t* s,const uint16_t length) {
 }
 
 void setup() {
-  pinMode(led1,OUTPUT);
   pinMode(usen,OUTPUT);
   sensor_off();
 
@@ -157,23 +148,31 @@ void setup() {
   RGB.control(true);
   RGB.color(0,0,0);
   RGB.brightness(0);
-
-  timer1.start();
 }
 
 void loop() {
   int ct = Time.now();
   if (ct - last_sampled >= 1) {
-    //if ((latest_reading >= 300) && (latest_reading <= 5000)) {
-    if ((latest_reading >= 300) && (latest_reading < 5000)) {
-      if (readings_i < N_AVG) {
-        readings[readings_i++] = latest_reading;
-        latest_reading = 0;
-        last_sampled = ct;
-        Serial.println("got");
+    ustrigger();
+    uint16_t r = 0;
+    for (uint8_t i = 0; i < 250; i++) {
+      if (Serial1.available()) {
+        if (fsm(Serial1.read(),&r)) {
+          if ((r >= 300) && (r < 5000)) {
+            if (readings_i < N_AVG) {
+              readings[readings_i++] = r;
+              last_sampled = ct;
+              Serial.println("got");
+            }
+          } else {
+            Serial.println("nope");
+          }
+          break;
+        }
+      } else {
+        delay(1);
+// so if sensor is disconnected, wait max 250ms and retry on next loop()
       }
-    } else {
-      //Serial.println("retry");
     }
   }
 
