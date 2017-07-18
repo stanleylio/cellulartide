@@ -162,7 +162,7 @@ void loop() {
             if (readings_i < N_AVG) {
               readings[readings_i++] = r;
               last_sampled = ct;
-              Serial.println("got");
+              Serial.println(String(r));
             }
           } else {
             Serial.println("nope");
@@ -217,7 +217,7 @@ void loop() {
     }
     #endif
 
-    String debugmsg = "{\"Timestamp\":" + String(Time.now()) + ",\"VbattV\":" + String(fuel.getVCell()) + bmemsg + "}";
+    String debugmsg = "{\"Timestamp\":" + String(Time.now()) + ",\"VbattV\":" + String(fuel.getVCell(),3) + bmemsg + "}";
     Serial.println(debugmsg);
 
     #if PUBLISH_ENABLED
