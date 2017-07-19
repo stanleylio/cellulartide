@@ -49,7 +49,7 @@ University of Hawaii, 2017
 
 #define PUBLISH_ENABLED 1
 #define N_AVG           (60)
-#define N_GROUP         (10)  // make sure the total message length stays under 255 chars!
+#define N_GROUP         (10)  // make sure the overall message length stays under 255 chars!
 #define HAS_BME280      0
 
 volatile uint16_t readings[N_AVG];  // a list of sensor readings
@@ -64,8 +64,8 @@ FuelGauge fuel;
 volatile int last_sampled = 0;
 
 
-int usen = D1;  // EN pin of ultrasonic sensor; v0.1 and prior (conflict with I2C)
-//int usen = D2;  // EN pin of ultrasonic sensor; v0.2 board
+//int usen = D1;  // EN pin of ultrasonic sensor; v0.1 and prior (conflict with I2C)
+int usen = D2;  // EN pin of ultrasonic sensor; v0.2 board
 void sensor_on() {  digitalWrite(usen,HIGH);}
 void sensor_off() {  digitalWrite(usen,LOW);}
 
