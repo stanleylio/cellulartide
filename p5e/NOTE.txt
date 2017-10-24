@@ -1,0 +1,27 @@
+send group mean, min, max... median? std?
+make debug reports independent of sample reports
+
+
+
+it's time to sample?
+clear buffer
+enable sensor
+read.
+	good? take it
+	no? timeout? (max 6 trials actually)
+		no: retry
+		yes: mark as 0
+disable sensor		
+
+
+got 60?
+cal sample mean, but exclude the 0's. send min, max, valid group size
+	what if all 60 are 0's (invalid)? mean/min/max of "no valid reading" is NaN
+
+
+
+From p5c - sleepness, semi-auto, support query
+reject readings of "5000"
+
+
+For v0.2 board only.
