@@ -1,0 +1,4 @@
+From p5b (no sleep), but with optional BME280.
+Readings of 5000 are considered failure and a retry is attempted before the next cycle.
+
+Designed for v0.2 board. Support for v0.1 board available via a flag.
