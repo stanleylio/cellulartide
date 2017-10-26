@@ -78,6 +78,21 @@ bool fsm(uint8_t c, uint16_t * r) {
   return false;
 }
 
+void check_soc() {
+  // go into Deep Sleep if State of Charge < 20%.
+  // Electron will reset upon wake up.
+  //
+  // should there be a hysteris? something likse "if it was sleeping because of
+  // <20%, it will only wake up and run if > 50%"?
+  // check voltage as well? if (fuel.getVCell() < 3.6) {} ?
+  if (fuel.getSoC() < 20) {
+    Cellular.on();
+    System.sleep(SLEEP_MODE_DEEP,24*3600);
+    // can't use SLEEP_MODE_SOFTPOWEROFF because it would shut the fuel gauge
+    // off. if the gauge was off it would still read <20% on power up
+  }
+}
+
 void mean(volatile uint16_t* s,const uint16_t length, double *d2w, uint8_t *sample_size) {
 	*sample_size = 0;
 	double sum = 0;
@@ -98,15 +113,10 @@ void setup() {
   pinMode(usen,OUTPUT);
   sensor_off();
 
-  // - - -
-  // should there be a hysteris? something likse "if it was sleeping because of
-  // <20%, it will only wake up and run if > 50%"?
-  if (fuel.getSoC() < 20) { // %. should check voltage as well?
-    Cellular.on();
-    System.sleep(SLEEP_MODE_DEEP,24*3600);
-    // can't use SLEEP_MODE_SOFTPOWEROFF because it would shut the fuel gauge
-    // off. if the gauge was off it would still read <20% on power up
-  }
+  // TOOD if SoC > 10%, send a power up message. like
+  // {"event":"power up","firmware version":"p5e"}
+
+  check_soc();
 
   Serial.begin();
   Serial1.begin(9600,SERIAL_8N1);
@@ -222,11 +232,7 @@ void loop() {
 
     samples_i = 0;
 
-    // - - -
-    if (fuel.getSoC() < 20) { // %. should check voltage as well?
-      Cellular.on();
-      System.sleep(SLEEP_MODE_DEEP,24*3600);
-    }
+    check_soc();
   }
 
   // sync the internal real-time clock
