@@ -84,7 +84,12 @@ void check_soc() {
   //
   // should there be a hysteris? something likse "if it was sleeping because of
   // <20%, it will only wake up and run if > 50%"?
+  //
   // check voltage as well? if (fuel.getVCell() < 3.6) {} ?
+  // soc < 20% AND vbatt < 3.6: safer against spurious deep sleep
+  // soc < 20% OR vbatt < 3.6: safer against "Dim Blue"
+  //
+  // how does the fuel gauge know the capacity and state of charge of the cell?
   if (fuel.getSoC() < 20) {
     Cellular.on();
     System.sleep(SLEEP_MODE_DEEP,24*3600);
@@ -121,7 +126,9 @@ void setup() {
   Serial.begin();
   Serial1.begin(9600,SERIAL_8N1);
 
+  #if PUBLISH_ENABLED
   Particle.variable("d2w", latest_reading);
+  #endif
 
   clocksync();
 
