@@ -40,6 +40,9 @@ void sensor_off() {  digitalWrite(usen,LOW);}
 SYSTEM_MODE(SEMI_AUTOMATIC);  // !!
 
 void clocksync() {
+	/*
+	Synchronize Particle Electron's own clock with cloud time.
+	*/
   if (!Particle.syncTimePending()) {
     Serial.println("clocksync() begin");
     Particle.connect();
@@ -51,9 +54,13 @@ void clocksync() {
   }
 }
 
-bool fsm(uint8_t c, uint16_t * r) {
-  static uint8_t chrbuf_i;
-  static uint8_t chrbuf[4];
+bool fsm(uint8_t c, uint16_t *r) {
+	/* Finite state machine to parse MB7369/89's output to a number.
+		A sample measurement: "R1234\r" for 1234 millimeter.
+		Sensor reports 300mm for target <= 300mm; it reports 5000mm if no target detected.
+	*/
+	static uint8_t chrbuf_i;
+	static uint8_t chrbuf[4];
 
 	if ('R' == c) {
     chrbuf_i = 0;
@@ -62,8 +69,8 @@ bool fsm(uint8_t c, uint16_t * r) {
 		chrbuf[2] = 0;
 		chrbuf[3] = 0;
 	} else if ('\r' == c) {
-    *r = (chrbuf[0] - '0')*1000 + (chrbuf[1] - '0')*100 + (chrbuf[2] - '0')*10 + (chrbuf[3] - '0');
-    return true;
+		*r = (chrbuf[0] - '0')*1000 + (chrbuf[1] - '0')*100 + (chrbuf[2] - '0')*10 + (chrbuf[3] - '0');
+		return true;
 	} else {
 		if (chrbuf_i < sizeof(chrbuf)) {
 			if ((c >= '0') && (c <= '9')) {
@@ -79,17 +86,19 @@ bool fsm(uint8_t c, uint16_t * r) {
 }
 
 void check_soc() {
-  // go into Deep Sleep if State of Charge < 20%.
-  // Electron will reset upon wake up.
-  //
-  // should there be a hysteris? something likse "if it was sleeping because of
-  // <20%, it will only wake up and run if > 50%"?
-  //
-  // check voltage as well? if (fuel.getVCell() < 3.6) {} ?
-  // soc < 20% AND vbatt < 3.6: safer against spurious deep sleep
-  // soc < 20% OR vbatt < 3.6: safer against "Dim Blue"
-  //
-  // how does the fuel gauge know the capacity and state of charge of the cell?
+  /*
+  Check the State of Charge (SoC). Go into Deep Sleep for 24hr if SoC < 20%.
+  Electron will reset upon wake up.
+
+  Should there be a hysteris? something like "if it was sleeping because of
+  <20%, it will only wake up and run if > 50%"?
+
+  Check voltage as well? if (fuel.getVCell() < 3.6) {} ?
+  soc < 20% AND vbatt < 3.6: safer against spurious deep sleep
+  soc < 20% OR vbatt < 3.6: safer against "Dim Blue"
+
+  How does the fuel gauge know the capacity and state of charge of the cell?
+  */
   if (fuel.getSoC() < 20) {
     Cellular.on();
     System.sleep(SLEEP_MODE_DEEP,24*3600);
@@ -99,6 +108,10 @@ void check_soc() {
 }
 
 void mean(volatile uint16_t* s,const uint16_t length, double *d2w, uint8_t *sample_size) {
+  /*
+  Calculate the sample mean of a given array of numbers.
+  Return the sample mean d2w and the sample size (out-of-range measurements are excluded).
+  */
 	*sample_size = 0;
 	double sum = 0;
 	for (uint8_t i = 0; i < length; i++) {
@@ -145,6 +158,9 @@ void loop() {
     bool goodread = false;
     uint16_t r = 0;
 
+	// Toggle the ultrasonic sensor EN pin and wait for a measurement from serial port.
+	// Wait at most ~200ms for the measurement. If the measurement doesn't check
+	// out (can't parse, out-of-range...), repeat at most four times.
     for (uint8_t retry = 0; (retry < 4) && (!goodread); retry++) {
       sensor_on();
       delayMicroseconds(200);
@@ -179,7 +195,7 @@ void loop() {
     last_sampled = ct;
   }
 
-  // calculate mean and store as one sample
+  // Aggregate N_AVG measurements into one sample
   if ((readings_i >= N_AVG) && (samples_i < N_GROUP)) {
     double d2w;
     uint8_t sample_size = 0;
@@ -195,8 +211,8 @@ void loop() {
     }
   }
 
-  // format the list of samples into a string of the form
-  //  [[t1,d1],[t2,d2]...]
+  // Format the list of samples into a string of the form
+  //  [[t1,d2w1,sample_size1],[t2,d2w2,sample_size2]...]
   if (samples_i >= N_GROUP) {
     String msg = "[";
     for (int i = 0; i < samples_i; i++) {
@@ -216,9 +232,10 @@ void loop() {
     }
     msg += "]";
 
-    // print/publish
+    // debug print to serial
     Serial.println(msg);
 
+    // optional BME280 readings
     String bmemsg = "";
     #if HAS_BME280
     Adafruit_BME280 bme;
@@ -227,9 +244,11 @@ void loop() {
     }
     #endif
 
+    // system health
     String debugmsg = "{\"Timestamp\":" + String(Time.now()) + ",\"VbattV\":" + String(fuel.getVCell(),3) + ",\"SoC\":" + String(fuel.getSoC(),2) + bmemsg + "}";
     Serial.println(debugmsg);
 
+    // publish
     #if PUBLISH_ENABLED
     Particle.connect();
     Particle.publish("d2w",msg);
